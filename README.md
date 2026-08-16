@@ -33,6 +33,7 @@
     - [Prerequisites](#prerequisites)
     - [Installation](#installation)
     - [Usage](#usage)
+        - [Validating job params](#validating-job-params)
         - [Enabling both actions](#enabling-both-actions)
         - [Auth](#auth)
     - [Testing](#testing)
@@ -190,6 +191,38 @@ export const main = runWorker<ProcessItemsParams, ProcessItemsResult>(async (ctx
 
   return { processed };
 }, { state: await initState() });
+```
+
+#### Validating job params
+
+Neither `submit()` nor `runWorker()` validates the shape of `params` - it's passed straight through, as `Record<string, unknown>`. That matters here specifically because the submit/poll action and the worker action are two independent action bundles with no compile-time link between them; nothing catches a mismatch except a runtime failure inside the worker. Share one schema between both bundles and validate on each end - [Zod](https://zod.dev) works well for this, but any library that throws on failure does (`npm install zod`):
+
+```ts
+// schema.ts - imported by both the submit/poll action and the worker action
+import { z } from "zod";
+
+export const ProcessItemsSchema = z.object({ items: z.array(z.string()) });
+export type ProcessItemsParams = z.infer<typeof ProcessItemsSchema>;
+```
+
+**Submit side** - validate before invoking, so a bad request gets a clear `400` instead of silently reaching the worker. This means wiring the route yourself instead of using `jobs.router()`'s `/submit` (its other routes - status/cancel/report - still apply, since `submit`/`getStatus`/`cancel`/`report` are plain methods on `jobs`, not tied to the router):
+
+```ts
+app.post("/jobs/submit", async (c) => {
+  const parsed = ProcessItemsSchema.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+  const result = await jobs.submit("my-package/my-worker", parsed.data);
+  return c.json(result, 202);
+});
+```
+
+**Worker side** - validate `ctx.params` at the top of the handler; a thrown `ZodError` is caught by `runWorker` like any other error and recorded as a `failed` job:
+
+```ts
+export const main = runWorker<ProcessItemsParams, ProcessItemsResult>(async (ctx) => {
+  const { items } = ProcessItemsSchema.parse(ctx.params);
+  // ...
+});
 ```
 
 #### Enabling both actions
