@@ -14,7 +14,6 @@ async function makeClient(overrides: Record<string, unknown> = {}) {
     state,
     ow,
     namespace: "my-namespace",
-    apiHost: "https://adobeioruntime.net",
     selfActionName: "/my-namespace/my-package/my-submit-action",
     now: fixedNow,
     ...overrides,
@@ -33,10 +32,10 @@ describe("submit", () => {
 
     expect(result.jobId).toBe("my-namespace.my-package.my-worker.abc123");
     expect(result.statusUrl).toBe(
-      "https://adobeioruntime.net/api/v1/web/my-namespace/my-package/my-submit-action/status/my-namespace.my-package.my-worker.abc123",
+      "https://my-namespace.adobeioruntime.net/api/v1/web/my-package/my-submit-action/status/my-namespace.my-package.my-worker.abc123",
     );
     expect(result.cancelUrl).toBe(
-      "https://adobeioruntime.net/api/v1/web/my-namespace/my-package/my-submit-action/cancel/my-namespace.my-package.my-worker.abc123",
+      "https://my-namespace.adobeioruntime.net/api/v1/web/my-package/my-submit-action/cancel/my-namespace.my-package.my-worker.abc123",
     );
     expect(state.peek(submittedAtKey(result.jobId))).toBe("2026-08-15T10:00:00.000Z");
   });
@@ -56,7 +55,6 @@ describe("submit", () => {
     const client = await init({
       state,
       ow,
-      apiHost: "https://adobeioruntime.net",
       selfActionName: "/ns/pkg/action",
     });
     await expect(client.submit("pkg/worker", {})).rejects.toThrow(/__OW_NAMESPACE/);

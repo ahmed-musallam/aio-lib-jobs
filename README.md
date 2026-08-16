@@ -63,7 +63,7 @@ In Adobe App Builder / I/O Runtime, exposing a long-running process as an API fo
 - **Read-time timing, not heartbeats** - `queuedMs`, `elapsedMs`, and a computed `stale` flag are derived from stored timestamps at poll time; nothing needs a background heartbeat to detect a dead worker.
 - **Prefix-scoped reporting** - `report()` lists every job for a given worker action via a single glob-scoped `list()` call, including jobs still `queued`.
 - **Bring your own auth** - `router()` returns a plain composable `Hono` instance (it never calls `ToOpenWhiskAction()` itself), so you can wrap it with `hono/bearer-auth` or any other Hono middleware before mounting it.
-- **Zero-config status URLs** - `statusUrl`/`cancelUrl` are built from `__OW_API_HOST` + `__OW_ACTION_NAME`, the action's own runtime environment - no base-URL configuration and no header-sniffing.
+- **Zero-config status URLs** - `statusUrl`/`cancelUrl` are built from `__OW_ACTION_NAME`'s own namespace/package/action segments as `https://<namespace>.adobeioruntime.net/api/v1/web/<package>/<action>` - no base-URL configuration and no header-sniffing. (Deliberately not `__OW_API_HOST`: that env var is Runtime's internal control-plane host, unreachable from outside the platform - confirmed by an actual deployed round-trip, not just the docs.)
 
 ---
 
@@ -117,7 +117,7 @@ This library assumes exactly one non-blocking worker invocation per job (no fan-
 			<tr style='border-bottom: 1px solid #eee;'><td style='padding: 8px;'><b><a href='src/job-id.ts'>job-id.ts</a></b></td><td style='padding: 8px;'>Derives a state-key-safe prefix from an action name and composes/parses <code>jobId</code>.</td></tr>
 			<tr style='border-bottom: 1px solid #eee;'><td style='padding: 8px;'><b><a href='src/keys.ts'>keys.ts</a></b></td><td style='padding: 8px;'>Builds the three per-job state keys (main record, <code>submittedAt</code>, <code>cancel</code>) and the report glob pattern.</td></tr>
 			<tr style='border-bottom: 1px solid #eee;'><td style='padding: 8px;'><b><a href='src/timing.ts'>timing.ts</a></b></td><td style='padding: 8px;'>Computes <code>queuedMs</code>, <code>elapsedMs</code>, and <code>stale</code> from stored timestamps.</td></tr>
-			<tr style='border-bottom: 1px solid #eee;'><td style='padding: 8px;'><b><a href='src/urls.ts'>urls.ts</a></b></td><td style='padding: 8px;'>Builds absolute <code>statusUrl</code>/<code>cancelUrl</code> from <code>__OW_API_HOST</code> + <code>__OW_ACTION_NAME</code>.</td></tr>
+			<tr style='border-bottom: 1px solid #eee;'><td style='padding: 8px;'><b><a href='src/urls.ts'>urls.ts</a></b></td><td style='padding: 8px;'>Builds absolute <code>statusUrl</code>/<code>cancelUrl</code> from <code>__OW_ACTION_NAME</code> as <code>https://&lt;namespace&gt;.adobeioruntime.net/...</code>.</td></tr>
 			<tr style='border-bottom: 1px solid #eee;'><td style='padding: 8px;'><b><a href='src/codec.ts'>codec.ts</a></b></td><td style='padding: 8px;'>JSON encode/decode helpers, since <code>aio-lib-state</code>'s <code>put()</code> only accepts strings.</td></tr>
 			<tr style='border-bottom: 1px solid #eee;'><td style='padding: 8px;'><b><a href='src/errors.ts'>errors.ts</a></b></td><td style='padding: 8px;'><code>JobsLibError</code> and its error codes.</td></tr>
 			<tr style='border-bottom: 1px solid #eee;'><td style='padding: 8px;'><b><a href='src/types.ts'>types.ts</a></b></td><td style='padding: 8px;'>Shared domain types: <code>JobRecord</code>, <code>JobStatus</code>, <code>JobStatusResponse</code>, etc.</td></tr>
@@ -209,7 +209,13 @@ export type ProcessItemsParams = z.infer<typeof ProcessItemsSchema>;
 
 ```ts
 app.post("/jobs/submit", async (c) => {
-  const parsed = ProcessItemsSchema.safeParse(await c.req.json());
+  let body: unknown;
+  try {
+    body = await c.req.json(); // throws on malformed JSON - safeParse only validates shape, not syntax
+  } catch {
+    return c.json({ error: "invalid JSON body" }, 400);
+  }
+  const parsed = ProcessItemsSchema.safeParse(body);
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const result = await jobs.submit("my-package/my-worker", parsed.data);
   return c.json(result, 202);

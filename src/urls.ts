@@ -1,23 +1,21 @@
 import { JobsLibError } from "./errors.js";
 
 export interface BuildActionBaseUrlInput {
-  /** e.g. `process.env.__OW_API_HOST` */
-  apiHost: string;
   /** e.g. `process.env.__OW_ACTION_NAME`, formatted as /namespace/package/action */
   actionName: string;
 }
 
 /**
- * Builds the documented public URL for a web action -
- * `<apiHost>/api/v1/web/<namespace>/<package>/<action>` - entirely from
- * values the action already has in its own environment. No header-sniffing,
- * no consumer-supplied base URL config.
+ * Builds the public web action URL - `https://<namespace>.adobeioruntime.net/api/v1/web/<package>/<action>`
+ * - entirely from the action's own `__OW_ACTION_NAME`. Deliberately does NOT
+ * use `__OW_API_HOST`: that env var points at Adobe I/O Runtime's internal
+ * control-plane host (used by the `openwhisk` client for authenticated
+ * invoke() calls), which is unreachable from outside the platform - verified
+ * by an actual deployed round-trip, not just the docs.
  */
 export function buildActionBaseUrl({
-  apiHost,
   actionName,
 }: BuildActionBaseUrlInput): string {
-  const trimmedHost = apiHost.replace(/\/+$/, "");
   const segments = actionName.replace(/^\/+/, "").split("/").filter(Boolean);
 
   let namespace: string;
@@ -36,7 +34,7 @@ export function buildActionBaseUrl({
     );
   }
 
-  return `${trimmedHost}/api/v1/web/${namespace}/${pkg}/${action}`;
+  return `https://${namespace}.adobeioruntime.net/api/v1/web/${pkg}/${action}`;
 }
 
 export function buildStatusUrl(actionBaseUrl: string, jobId: string): string {

@@ -25,8 +25,6 @@ export interface InitConfig {
   owInit?: Record<string, unknown>;
   /** Defaults to `process.env.__OW_NAMESPACE`. Needed by submit()/report() to fully-qualify worker action names. */
   namespace?: string;
-  /** Defaults to `process.env.__OW_API_HOST`. Needed by submit() to build statusUrl/cancelUrl. */
-  apiHost?: string;
   /** Defaults to `process.env.__OW_ACTION_NAME` - this submit/poll action's own name, for building statusUrl/cancelUrl. */
   selfActionName?: string;
   now?: () => Date;
@@ -87,7 +85,6 @@ export async function init(config: InitConfig = {}): Promise<JobsClient> {
     })());
 
   const namespace = config.namespace ?? process.env.__OW_NAMESPACE;
-  const apiHost = config.apiHost ?? process.env.__OW_API_HOST;
   const selfActionName = config.selfActionName ?? process.env.__OW_ACTION_NAME;
   const now = config.now ?? (() => new Date());
 
@@ -97,7 +94,6 @@ export async function init(config: InitConfig = {}): Promise<JobsClient> {
     opts?: SubmitOptions,
   ): Promise<SubmitResult> {
     const ns = required(namespace, "__OW_NAMESPACE");
-    const host = required(apiHost, "__OW_API_HOST");
     const selfName = required(selfActionName, "__OW_ACTION_NAME");
 
     if ("__aio_lib_jobs" in params) {
@@ -124,7 +120,7 @@ export async function init(config: InitConfig = {}): Promise<JobsClient> {
     const jobId = buildJobId(deriveActionPrefix(fqWorkerName), activationId);
     await state.put(submittedAtKey(jobId), now().toISOString());
 
-    const base = buildActionBaseUrl({ apiHost: host, actionName: selfName });
+    const base = buildActionBaseUrl({ actionName: selfName });
     return {
       jobId,
       statusUrl: buildStatusUrl(base, jobId),
