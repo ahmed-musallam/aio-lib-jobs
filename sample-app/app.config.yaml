@@ -1,0 +1,24 @@
+application:
+  actions: actions
+  runtimeManifest:
+    packages:
+      aio-lib-jobs-sample:
+        license: Apache-2.0
+        actions:
+          submit:
+            function: actions/process-items/submit.ts
+            web: "raw" # required - see hono-openwhisk-adapter
+            runtime: nodejs:22
+            inputs:
+              LOG_LEVEL: debug
+          worker:
+            function: actions/process-items/worker.ts
+            # no `web` key - a plain non-web action, invoked only via submit()'s non-blocking invoke()
+            runtime: nodejs:22
+            inputs:
+              LOG_LEVEL: debug
+            # This demo's simulated work finishes in well under a minute, so the
+            # default 60s action timeout is left as-is. A real long-running worker
+            # would raise this via `limits: { timeout: <ms> }`, up to whatever
+            # ceiling the workspace's plan allows (OpenWhisk's own hard ceiling for
+            # non-blocking actions is 180 min / 10800000ms).
