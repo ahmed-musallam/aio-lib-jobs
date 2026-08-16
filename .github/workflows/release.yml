@@ -1,0 +1,73 @@
+# Publishes to npm on push to main via semantic-release, using npm Trusted
+# Publishing (OIDC) - no NPM_TOKEN anywhere, ever.
+#
+# One-time setup required before this workflow can publish (npm requires a
+# package to already exist before Trusted Publishing can be configured for
+# it - see https://docs.npmjs.com/trusted-publishers):
+#   1. Publish v1.0.0 once manually, from your own already-authenticated
+#      local npm session (`npm publish`) - not from CI, no token stored
+#      anywhere.
+#   2. On npmjs.com: package -> Settings -> Trusted publishing -> GitHub
+#      Actions. Fill in this repo's org/user + name, and the workflow
+#      filename "release.yml" (exactly, including the extension).
+#
+# Commits must follow Conventional Commits (feat:, fix:, BREAKING CHANGE:
+# footer, etc. - enforced locally by commitlint via husky) to trigger a
+# release; commit types that aren't feat/fix/perf/BREAKING CHANGE don't
+# trigger a version bump.
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  id-token: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # actions/setup-node writes an .npmrc referencing NODE_AUTH_TOKEN
+          # regardless of whether a real token exists; leaving it unset (vs
+          # explicitly empty) has caused spurious ENONPMTOKEN/EINVALIDNPMTOKEN
+          # failures with OIDC trusted publishing - see
+          # https://github.com/semantic-release/npm/issues/1069 and
+          # https://github.com/actions/setup-node/issues/1440.
+          NODE_AUTH_TOKEN: ""
+        run: npx semantic-release

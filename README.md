@@ -296,7 +296,12 @@ npx tsc --noEmit && npm test && npm run lint && npm run build
 2. **Create a branch** with a descriptive name.
 3. **Make your changes**, following the existing seams (pure logic in `src/*.ts`, tests in `test/*.test.ts` using the fakes in `test/helpers/`).
 4. **Verify**: `npx tsc --noEmit && npm test && npm run lint && npm run build`.
-5. **Open a pull request** describing the change and its motivation.
+5. **Commit using [Conventional Commits](https://www.conventionalcommits.org)** (`feat:`, `fix:`, `feat!:`/`BREAKING CHANGE:` footer, etc.) - enforced locally by commitlint via a husky `commit-msg` hook, and checked again in CI on pull requests.
+6. **Open a pull request** describing the change and its motivation.
+
+### Releasing
+
+Releases are fully automated by [semantic-release](https://semantic-release.gitbook.io/semantic-release/) on every push to `main` - the commit types since the last release determine the version bump, and it publishes to npm using [Trusted Publishing (OIDC)](https://docs.npmjs.com/trusted-publishers/), so no `NPM_TOKEN` is stored anywhere. See `.github/workflows/release.yml` for the one-time npm-side setup this requires.
 
 ---
 

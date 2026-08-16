@@ -1,6 +1,6 @@
 {
   "name": "aio-lib-jobs",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Submit long-running work from an Adobe App Builder web action, hand it off to a non-blocking worker action, and track its status - so you only write the job logic.",
   "license": "Apache-2.0",
   "files": [
@@ -25,20 +25,31 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "oxlint .",
-    "lint:fix": "oxlint --fix ."
+    "lint:fix": "oxlint --fix .",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@adobe/aio-lib-state": "^5.3.1",
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "@semantic-release/changelog": "^7.0.0",
+    "@semantic-release/git": "^11.0.1",
     "@types/node": "^26.2.0",
     "@typescript/typescript6": "^6.0.2",
     "@vitest/coverage-v8": "^4.1.10",
+    "conventional-changelog-conventionalcommits": "^10.3.0",
     "hono": "^4.13.2",
+    "husky": "^9.1.7",
     "openwhisk": "^3.21.9",
     "oxlint": "^1.78.0",
+    "semantic-release": "^25.0.9",
     "typescript": "^7.0.2",
     "vite": "^8.2.1",
     "vite-plugin-dts": "^5.0.3",
     "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "peerDependencies": {
     "@adobe/aio-lib-state": "^5.0.0",
