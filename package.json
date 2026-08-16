@@ -1,0 +1,53 @@
+{
+  "name": "aio-lib-jobs",
+  "version": "0.1.0",
+  "description": "Submit long-running work from an Adobe App Builder web action, hand it off to a non-blocking worker action, and track its status - so you only write the job logic.",
+  "license": "Apache-2.0",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "vite build",
+    "watch": "vite build --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix ."
+  },
+  "devDependencies": {
+    "@adobe/aio-lib-state": "^5.3.1",
+    "@types/node": "^26.2.0",
+    "@typescript/typescript6": "^6.0.2",
+    "@vitest/coverage-v8": "^4.1.10",
+    "hono": "^4.13.2",
+    "openwhisk": "^3.21.9",
+    "oxlint": "^1.78.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1",
+    "vite-plugin-dts": "^5.0.3",
+    "vitest": "^4.1.10"
+  },
+  "peerDependencies": {
+    "@adobe/aio-lib-state": "^5.0.0",
+    "hono": "^4.0.0",
+    "openwhisk": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "hono": {
+      "optional": true
+    }
+  }
+}
