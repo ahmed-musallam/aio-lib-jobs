@@ -78,8 +78,10 @@ describe("getStatus", () => {
     });
   });
 
-  it("returns queued when submittedAt exists but the worker hasn't written its first record yet", async () => {
-    const { client, state } = await makeClient();
+  it("returns queued when submittedAt exists but the worker hasn't written its first record yet, with queuedMs so far", async () => {
+    const { client, state } = await makeClient({
+      now: () => new Date("2026-08-15T10:00:04.000Z"),
+    });
     const jobId = "my-namespace.my-package.my-worker.abc123";
     await state.put(submittedAtKey(jobId), "2026-08-15T10:00:00.000Z");
 
@@ -87,6 +89,7 @@ describe("getStatus", () => {
       jobId,
       state: "queued",
       submittedAt: "2026-08-15T10:00:00.000Z",
+      queuedMs: 4_000,
     });
   });
 
@@ -161,7 +164,7 @@ describe("report", () => {
 
     const results = await client.report("my-package/my-worker");
     expect(results).toEqual([
-      { jobId: queuedJobId, state: "queued", submittedAt: "2026-08-15T10:00:00.000Z" },
+      { jobId: queuedJobId, state: "queued", submittedAt: "2026-08-15T10:00:00.000Z", queuedMs: 0 },
     ]);
   });
 });
@@ -192,7 +195,9 @@ describe("router", () => {
     const reportRes = await app.request("/report");
     expect(reportRes.status).toBe(200);
     const reportBody = await reportRes.json();
-    expect(reportBody).toEqual([{ jobId: submitBody.jobId, state: "queued", submittedAt: expect.any(String) }]);
+    expect(reportBody).toEqual([
+      { jobId: submitBody.jobId, state: "queued", submittedAt: expect.any(String), queuedMs: expect.any(Number) },
+    ]);
   });
 
   it("returns 400 for a malformed JSON submit body instead of silently defaulting to empty params", async () => {

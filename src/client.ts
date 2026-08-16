@@ -136,7 +136,12 @@ export async function init(config: InitConfig = {}): Promise<JobsClient> {
 
     if (!mainRaw) {
       if (submittedRaw) {
-        return { jobId, state: "queued", submittedAt: submittedRaw.value };
+        return {
+          jobId,
+          state: "queued",
+          submittedAt: submittedRaw.value,
+          queuedMs: now().getTime() - Date.parse(submittedRaw.value),
+        };
       }
       return { jobId, state: "not-found" };
     }

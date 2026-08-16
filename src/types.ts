@@ -25,7 +25,7 @@ export interface TimingFields {
 
 export type JobStatusResponse =
   | ({ jobId: string; state: "not-found" })
-  | ({ jobId: string; state: "queued" } & Pick<TimingFields, "submittedAt">)
+  | ({ jobId: string; state: "queued" } & Pick<TimingFields, "submittedAt" | "queuedMs">)
   | ({
       jobId: string;
       state: JobStatus;
