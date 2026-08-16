@@ -33,6 +33,8 @@
     - [Prerequisites](#prerequisites)
     - [Installation](#installation)
     - [Usage](#usage)
+        - [Enabling both actions](#enabling-both-actions)
+        - [Auth](#auth)
     - [Testing](#testing)
 - [Roadmap / Known Limitations](#roadmap--known-limitations)
 - [Contributing](#contributing)
@@ -153,7 +155,7 @@ import { init } from "aio-lib-jobs";
 const jobs = await init();
 
 const app = new Hono();
-app.use("/jobs/*", bearerAuth({ token: process.env.MY_TOKEN }));
+app.use("/jobs/*", bearerAuth({ token: process.env.MY_TOKEN })); // optional - see "Auth" below for alternatives
 app.route("/jobs", await jobs.router("my-package/my-worker"));
 
 export const main = ToOpenWhiskAction(app);
@@ -165,12 +167,63 @@ export const main = ToOpenWhiskAction(app);
 import { runWorker } from "aio-lib-jobs";
 import { init as initState } from "@adobe/aio-lib-state";
 
-export const main = runWorker(async (ctx) => {
-  // ctx.jobId, ctx.params (your business payload), ctx.isCancelled()
-  if (await ctx.isCancelled()) return null;
-  return { total: 42 };
+interface ProcessItemsParams {
+  items: string[];
+}
+
+interface ProcessItemsResult {
+  processed: number;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export const main = runWorker<ProcessItemsParams, ProcessItemsResult>(async (ctx) => {
+  let processed = 0;
+
+  for (const item of ctx.params.items) {
+    if (await ctx.isCancelled()) break; // cooperative - the job function opts in to stopping early
+    await delay(1_000 + Math.random() * 5_000); // stand-in for a slow downstream call (DB write, external API, ...)
+    processed++;
+  }
+
+  return { processed };
 }, { state: await initState() });
 ```
+
+#### Enabling both actions
+
+Both the submit/poll action and the worker action need entries in your App Builder `app.config.yaml`. The submit/poll action must be `web: "raw"` (required by [`hono-openwhisk-adapter`](https://github.com/ahmed-musallam/hono-openwhisk-adapter)); the worker action is a plain non-web action, invoked only via the `openwhisk` client's non-blocking `invoke()`, never directly over HTTP:
+
+```yaml
+application:
+  runtimeManifest:
+    packages:
+      my-package:
+        actions:
+          my-submit-action:
+            function: actions/my-submit-action/index.ts
+            web: "raw" # required - see hono-openwhisk-adapter
+            runtime: nodejs:22
+            annotations:
+              require-adobe-auth: true # optional - see "Auth" below
+          my-worker:
+            function: actions/my-worker/index.ts
+            # no `web` key - a plain non-web action, invoked only via `submit()`'s non-blocking invoke()
+            runtime: nodejs:22
+            limits:
+              timeout: 10800000 # up to 10800000ms (180 min) - OpenWhisk's own ceiling for non-blocking actions
+```
+
+#### Auth
+
+`aio-lib-jobs` never adds auth itself (see [Design Notes](#design-notes)) - `router()` just returns a plain `Hono` instance, so you're free to protect it however fits your project:
+
+- **In code**, with any Hono middleware - `hono/bearer-auth` above, `hono/basic-auth`, a custom IMS-token check, etc. Runs inside the action, so you control the failure response shape.
+- **At the platform level**, with the `require-adobe-auth: true` annotation above - Adobe I/O Runtime rejects unauthenticated requests before your action code ever runs. No application code needed, but it's an all-or-nothing gate on the whole action, and **once set to `true` it cannot be set back to `false`**.
+
+Both are optional; an unauthenticated `router()` is reachable by anyone who has the URL, same as any other `web: "raw"` action.
 
 ### Testing
 
